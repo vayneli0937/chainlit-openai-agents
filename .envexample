@@ -1,0 +1,5 @@
+OPENROUTER_API_KEY="your key"
+GEMINI_API_KEY="your key"
+OPENAI_API_KEY="your key"
+CHAINLIT_AUTH_SECRET="your key"
+TAVILY_API_KEY="your key"
