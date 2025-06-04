@@ -9,11 +9,24 @@ import os
 import chainlit as cl
 from agents.mcp import MCPServer, MCPServerStdio
 import mlflow
+
 api_key = os.getenv("GEMINI_API_KEY")
-tavily_api_key = os.getenv("TAVILY_API_KE")
-mlflow.openai.autolog()
-mlflow.set_tracking_uri("http://localhost:5000")
-mlflow.set_experiment("OpenAI")
+if not api_key:
+    print("Warning: LLM api-key not found in environment variables.")
+
+url = os.getenv("GEMINI_URL")
+if not url:
+    print("Warning: LLM api-key url not found in environment variables.")
+
+# Get API key from environment variables
+firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
+if not firecrawl_api_key:
+    print("Warning: FIRECRAWL_API_KEY not found in environment variables. Using fallback method.")
+
+
+# mlflow.openai.autolog()
+# mlflow.set_tracking_uri("http://localhost:5000")
+# mlflow.set_experiment("OpenAI")
 
 @cl.password_auth_callback
 def password_auth(username: str, password: str):
@@ -30,7 +43,7 @@ def password_auth(username: str, password: str):
 async def main(message: cl.Message):
     custom_client = AsyncOpenAI(
         api_key=api_key,
-        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+        base_url=url
 
     )
     
@@ -66,23 +79,24 @@ async def main(message: cl.Message):
                         await res.send()                
             cl.user_session.set("input_items", result.to_input_list())
             
+
         async with MCPServerStdio(
             name="SequentialThinking MCP Server, via npx",
             params={
                 "command": "npx",
                 "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
             }
-        ) as SequentialThinkingServer, MCPServerStdio(
-            name="firecrawl-mcp, via npx",
+        ) as sequential_thinking_server, MCPServerStdio(
+            name="Firecrawl MCP Server",
             params={
                 "command": "npx",
                 "args": ["-y", "firecrawl-mcp"],
                 "env": {
-                    "FIRECRAWL_API_KEY": "fc-2773c436fa9549f687495133b7691b2e"
-                        },
-                    }
-        ) as firecrwal:
-            await run(SequentialThinkingServer, firecrwal)
+                    "FIRECRAWL_API_KEY": firecrawl_api_key
+                }
+            }
+        ) as firecrawl_server:
+            await run(sequential_thinking_server, firecrawl_server)
               
     except Exception as e:
         print(f"发生错误: {str(e)}")
